@@ -34,7 +34,8 @@ jobs:
           bash --version | head -1
           /bin/bash --version | head -1
           jq --version
-          awk -W version 2>/dev/null | head -1 || awk --version 2>/dev/null | head -1 || true
+          # </dev/null: BSD awk reads "-W version" as a program and would wait on stdin.
+          awk -W version </dev/null 2>/dev/null | head -1 || awk --version </dev/null 2>/dev/null | head -1 || true
 
       - name: Run suite
         run: bats tests/fp.bats
@@ -65,7 +66,7 @@ jobs:
           robots-check-off|s/^  \[ "\$ROBOTS_DECISION" = allow \] || refuse/  true || refuse/
           rate-limit-off|s/^    sleep "\$wait"$/    :/
           redirect-not-rechecked|s/^        url=\$(resolve_location "\$loc")$/        url=$(resolve_location "$loc"); FINAL_URL=$url; HTTP_STATUS=200; break/
-          private-hosts-allowed|s/^      refuse "only public hosts are allowed: \$HOST" ;;$/      : ;;/
+          private-hosts-allowed|s/^  require_public_host "\$HOST"$/  :/
           unreachable-robots-allows|s/ROBOTS_DECISION=disallow; ROBOTS_RULE="\$ROBOTS_ERROR/ROBOTS_DECISION=allow; ROBOTS_RULE="$ROBOTS_ERROR/
           MUTATIONS
           exit $fail

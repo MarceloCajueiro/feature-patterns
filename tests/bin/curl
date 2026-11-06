@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+# Test double for curl: answers from tests/fixtures and logs every request.
+# A request for URL u is answered from fixtures/<key>.body, where <key> is u
+# without the scheme and with every character outside [A-Za-z0-9.-] turned
+# into "_". Optional <key>.status, <key>.type and <key>.location override the
+# HTTP status (default 200 with a body, 404 without), the content type and the
+# redirect target. The -w output is always "status<TAB>type<TAB>location".
+set -u
+out= write= url= follow=
+while [ $# -gt 0 ]; do
+  case $1 in
+    -o) out=$2; shift 2 ;;
+    -w) write=$2; shift 2 ;;
+    -A|-H|--proto|--max-time|--max-filesize|--max-redirs) shift 2 ;;
+    -L) follow=1; shift ;;
+    -*) shift ;;
+    *) url=$1; shift ;;
+  esac
+done
+printf '%s\n' "$url" >> "${FP_CURL_LOG:-/dev/null}"
+key=$(printf '%s' "$url" | sed -e 's#^https*://##' | tr -c 'A-Za-z0-9.-' '_')
+f=${FP_FIXTURES:?FP_FIXTURES not set}/$key
+status=404; type=text/html; location=
+[ -f "$f.body" ] && status=200
+[ -f "$f.status" ] && status=$(cat "$f.status")
+[ -f "$f.type" ] && type=$(cat "$f.type")
+[ -f "$f.location" ] && location=$(cat "$f.location")
+if [ -n "$out" ]; then
+  if [ -f "$f.body" ]; then cat "$f.body" > "$out"; else : > "$out"; fi
+fi
+[ -n "$write" ] && printf '%s\t%s\t%s' "$status" "$type" "$location"
+exit 0

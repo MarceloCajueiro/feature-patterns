@@ -1,0 +1,6 @@
+<html><head><title>Demo App - App Store</title>
+<script id=software-application type="application/ld+json">
+{"@context":"https://schema.org","@type":"SoftwareApplication","name":"Demo App","genre":["Productivity","Business"],"applicationCategory":"BusinessApplication","author":{"@type":"Organization","name":"Demo Inc"},"aggregateRating":{"@type":"AggregateRating","ratingValue":4.5,"reviewCount":1200},"offers":{"@type":"Offer","price":0,"priceCurrency":"USD"}}
+</script>
+<script type="application/json" id="serialized-server-data">{"data":[{"data":{"shelfMapping":{"product_media_phone_":{"$kind":"Shelf","id":"product_media_phone_","items":[{"$kind":"ProductMediaItem","screenshot":{"$kind":"Artwork","template":"https://img.example/a/one.jpg/{w}x{h}{c}.{f}","width":1242,"height":2688}},{"$kind":"ProductMediaItem","screenshot":{"$kind":"Artwork","template":"https://img.example/a/two.jpg/{w}x{h}{c}.{f}"}}]},"product_media_pad_":{"$kind":"Shelf","id":"product_media_pad_","items":[{"$kind":"ProductMediaItem","screenshot":{"$kind":"Artwork","template":"https://img.example/a/pad.jpg/{w}x{h}{c}.{f}","width":2048,"height":2732}}]},"other":{"$kind":"Shelf","id":"similarItems","items":[]}}}}]}</script>
+</head><body></body></html>

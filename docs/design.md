@@ -31,8 +31,9 @@ Recommendations live in their own section so the user can tell what was observed
   Every request goes through robots.txt for the `feature-patterns` token, with the longest-match rule of RFC 9309, and a per-host minimum interval (5 seconds by default, longer if the site sets a Crawl-delay).
   An unreachable robots.txt counts as a refusal; a missing one (4xx) allows the request.
   Redirects are followed only after checking robots.txt again for the new URL.
-- **Only public hosts.**
-  Non-http(s) schemes, URLs with credentials and private or loopback addresses are refused before any request.
+- **Only public host names.**
+  Non-http(s) schemes, URLs with credentials, IP literals in any notation (dotted, integer, hex, IPv6), single-label names and local-only names are refused before any request, including as the target of a robots.txt redirect.
+  This keeps the research on public products; it is a scope guard, not a sandbox, since the agent running the script can reach the network by other means.
 - **Store listings without private APIs.**
   The iTunes Search API is disallowed by its host's robots.txt, so `appstore` reads the public listing page on apps.apple.com instead, which robots.txt allows, and extracts the screenshot URLs embedded in it.
   `play` does the same with the public Google Play listing.
@@ -59,4 +60,5 @@ bash 3.2, curl, jq and awk are the only requirements, so it runs on stock macOS 
 - Help centers and store screenshots lag behind or idealize the shipped UI; the report asks for source dates and a "Gaps and confidence" section.
 - Logged-in and paid flows are invisible by design.
 - The robots.txt matcher does not percent-decode paths before matching.
+- Host names are not resolved before a request, so a public name that resolves to a private address is not caught; the scope guard works on names.
 - Rate limiting keeps one timestamp per host in a state file on the local machine; parallel runs against the same host can race, so the skill tells the agent not to run them.

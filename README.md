@@ -55,6 +55,7 @@ It is in [`feature-patterns/references/taxonomy.md`](feature-patterns/references
 - No logging in, no creating accounts, no submitting forms, no paywalled content, no paid design-reference libraries.
 - Every request checks the site's robots.txt for the `feature-patterns` token and is refused when disallowed, including after a redirect.
 - Requests to the same host are spaced at least 5 seconds apart, or the site's Crawl-delay if longer.
+- Only public host names: IP addresses, local names and URLs with credentials are refused.
 - The user agent names this project and its repository, never you.
 - Fetched pages are treated as data, never as instructions.
 - The agent paraphrases, cites, and never suggests copying another product's copy, illustrations or brand.

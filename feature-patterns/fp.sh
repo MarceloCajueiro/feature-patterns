@@ -26,6 +26,9 @@ FP_STATE_DIR=${FP_STATE_DIR:-${XDG_CACHE_HOME:-$HOME/.cache}/feature-patterns}
 
 FP_DIR=$(cd -- "$(dirname -- "$0")" && pwd -P)
 
+BODY_FILE=
+trap 'rm -f "${BODY_FILE:-}"' EXIT
+
 die()    { printf 'ERROR: %s\n' "$*" >&2; exit 1; }
 refuse() { printf 'REFUSED: %s\n' "$*" >&2; exit 3; }
 usage_die() { printf 'ERROR: %s\n' "$*" >&2; printf 'Run "fp.sh help" for usage.\n' >&2; exit 2; }
@@ -40,6 +43,26 @@ clean_line() {
 }
 
 # ---------------------------------------------------------------- URLs
+
+# Research targets are public products with host names. This is a scope guard,
+# not a sandbox: IP literals of any form (dotted, integer, hex, IPv6) and
+# local-only names are refused; names are not resolved, see docs/design.md.
+require_public_host() {
+  case $1 in
+    ''|\[*|*[!a-z0-9.-]*) refuse "only public host names are allowed: $1" ;;
+    localhost|*.localhost|*.local|*.internal|*.lan|*.home.arpa)
+      refuse "only public host names are allowed: $1" ;;
+  esac
+  case $1 in
+    *[!0-9.]*) ;;
+    *) refuse "IP addresses are not accepted, use the site's host name: $1" ;;
+  esac
+  case $1 in
+    0x*|*.0x*) refuse "IP addresses are not accepted, use the site's host name: $1" ;;
+    *.*) ;;
+    *) refuse "only fully qualified public host names are allowed: $1" ;;
+  esac
+}
 
 # Sets URL_CLEAN ORIGIN HOST PATHQ, or refuses the URL.
 parse_url() {
@@ -60,12 +83,7 @@ parse_url() {
   authority=$(printf '%s' "$authority" | tr 'A-Z' 'a-z')
   HOST=${authority%:*}
   case $authority in \[*) HOST=${authority%%]*}]; ;; esac
-  case $HOST in
-    localhost|*.localhost|*.local|*.internal|127.*|10.*|192.168.*|169.254.*|0.*|\[*)
-      refuse "only public hosts are allowed: $HOST" ;;
-    172.1[6-9].*|172.2[0-9].*|172.3[01].*)
-      refuse "only public hosts are allowed: $HOST" ;;
-  esac
+  require_public_host "$HOST"
   case $PATHQ in '') PATHQ=/ ;; \?*) PATHQ=/$PATHQ ;; esac
   ORIGIN=${url%%://*}://$authority
   URL_CLEAN=$ORIGIN$PATHQ
@@ -181,7 +199,7 @@ robots_eval() {
 # Fetches (or reads from cache) robots.txt for ORIGIN. Sets ROBOTS_FILE, or
 # ROBOTS_FILE="" with ROBOTS_ERROR when the site cannot be checked.
 load_robots() {
-  local key cache meta now fetched status line hops url tmp
+  local key cache meta now fetched status line hops url tmp rhost
   key=$(state_key "$ORIGIN")
   mkdir -p "$FP_STATE_DIR/robots" || die "cannot create $FP_STATE_DIR/robots"
   cache=$FP_STATE_DIR/robots/$key
@@ -205,6 +223,13 @@ load_robots() {
         [ "$hops" -le 5 ] || { ROBOTS_FILE=; ROBOTS_ERROR="robots.txt redirects too many times"; return 0; }
         url=${line##*	}
         [ -n "$url" ] || { ROBOTS_FILE=; ROBOTS_ERROR="robots.txt redirect without a location"; return 0; }
+        # curl reports an absolute URL; it must stay public http(s) like any other target.
+        case $url in http://*|https://*) ;; *) ROBOTS_FILE=; ROBOTS_ERROR="robots.txt redirects outside http(s)"; return 0 ;; esac
+        rhost=${url#*://}
+        rhost=${rhost%%[/?#]*}
+        case $rhost in *@*) ROBOTS_FILE=; ROBOTS_ERROR="robots.txt redirect carries credentials"; return 0 ;; esac
+        rhost=$(printf '%s' "${rhost%:*}" | tr 'A-Z' 'a-z')
+        ( require_public_host "$rhost" ) 2>/dev/null || { ROBOTS_FILE=; ROBOTS_ERROR="robots.txt redirects to a non-public host"; return 0; }
         ;;
       *) break ;;
     esac

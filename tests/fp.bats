@@ -110,11 +110,19 @@ fp() { "$FP_BASH" "$FP" "$@"; }
 @test "fetch: non-http URLs, credentials and private hosts are refused without a request" {
   for u in file:///etc/passwd ftp://star.example/x https://user:pw@star.example/ \
            http://localhost:8080/ http://127.0.0.1/ http://192.168.1.10/ http://10.0.0.2/ \
-           http://172.20.0.1/ 'http://[::1]/'; do
+           http://172.20.0.1/ 'http://[::1]/' http://2130706433/ http://0x7f000001/ \
+           http://0177.0.0.1/ http://8.8.8.8/ http://intranet/ http://printer.lan/; do
     run fp fetch "$u"
     [ "$status" -eq 3 ] || { echo "not refused: $u"; return 1; }
   done
   [ ! -s "$FP_CURL_LOG" ]
+}
+
+@test "robots: a robots.txt redirect to a non-public host is refused, not followed" {
+  run fp robots https://evil.example/page
+  [ "$status" -eq 3 ]
+  [[ "$output" == *"non-public host"* ]]
+  ! grep -q '169.254' "$FP_CURL_LOG"
 }
 
 @test "fetch: requests to the same host wait for FP_MIN_INTERVAL" {

@@ -1,0 +1,11 @@
+# Only a wildcard group.
+User-agent: *
+Disallow: /private
+Allow: /private/open
+Disallow: /*.pdf$
+Disallow: /tie
+Allow: /tie
+Crawl-delay: 7
+
+User-agent: SomeOtherBot
+Disallow: /

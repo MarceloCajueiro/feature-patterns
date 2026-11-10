@@ -1,0 +1,72 @@
+name: tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  bats:
+    # ubuntu runs the awk scripts under mawk and gives bash 5.x; macos gives
+    # BSD awk and bash 3.2 as /bin/bash. Both matter.
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install bats
+        uses: bats-core/bats-action@3.0.0
+        with:
+          # Pinned: without a version the action asks the GitHub API for the
+          # latest release, unauthenticated, and shared runners hit the limit.
+          bats-version: 1.14.0
+          support-install: false
+          assert-install: false
+          detik-install: false
+          file-install: false
+
+      - name: Versions
+        run: |
+          bash --version | head -1
+          /bin/bash --version | head -1
+          jq --version
+          # </dev/null: BSD awk reads "-W version" as a program and would wait on stdin.
+          awk -W version </dev/null 2>/dev/null | head -1 || awk --version </dev/null 2>/dev/null | head -1 || true
+
+      - name: Run suite
+        run: bats tests/fp.bats
+
+      - name: Run suite under /bin/bash (bash 3.2 on macOS)
+        run: FP_BASH=/bin/bash bats tests/fp.bats
+
+      - name: Planted defects must turn the suite red
+        # A suite that cannot fail proves nothing. Each line plants one defect
+        # the skill must never ship; the suite has to catch every one of them.
+        run: |
+          set -u
+          mkdir -p /tmp/mut/feature-patterns
+          cp -R feature-patterns/references /tmp/mut/feature-patterns/
+          fail=0
+          while IFS='|' read -r name expr; do
+            [ -n "$name" ] || continue
+            sed "$expr" feature-patterns/fp.sh > /tmp/mut/feature-patterns/fp.sh
+            if cmp -s feature-patterns/fp.sh /tmp/mut/feature-patterns/fp.sh; then
+              echo "::error::mutation '$name' did not apply; update this step"; fail=1; continue
+            fi
+            if FP=/tmp/mut/feature-patterns/fp.sh bats tests/fp.bats > /tmp/mut/$name.log 2>&1; then
+              echo "::error::the suite passed with defect '$name' planted"; fail=1
+            else
+              echo "$name: $(grep -c '^not ok' /tmp/mut/$name.log) failing, as expected"
+            fi
+          done <<'MUTATIONS'
+          robots-check-off|s/^  \[ "\$ROBOTS_DECISION" = allow \] || refuse/  true || refuse/
+          rate-limit-off|s/^    sleep "\$wait"$/    :/
+          redirect-not-rechecked|s/^        url=\$(resolve_location "\$loc")$/        url=$(resolve_location "$loc"); FINAL_URL=$url; HTTP_STATUS=200; break/
+          private-hosts-allowed|s/^  require_public_host "\$HOST"$/  :/
+          unreachable-robots-allows|s/ROBOTS_DECISION=disallow; ROBOTS_RULE="\$ROBOTS_ERROR/ROBOTS_DECISION=allow; ROBOTS_RULE="$ROBOTS_ERROR/
+          MUTATIONS
+          exit $fail

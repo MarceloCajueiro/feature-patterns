@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# Test double for a headless Chrome: logs its arguments and writes a PNG.
+printf '%s\n' "$*" >> "${FP_CHROME_LOG:-/dev/null}"
+for a in "$@"; do
+  case $a in
+    --screenshot=*) printf '\211PNG\r\n\032\nfake' > "${a#--screenshot=}" ;;
+  esac
+done
